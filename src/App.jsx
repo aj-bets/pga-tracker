@@ -348,9 +348,9 @@ export default function App() {
         dirty = true;
       });
 
-      // === Truist R1 live update v2 (ESPN feed, May 7 ~5:00 PM ET) — runs after all seed bets exist ===
-      const targetStampV2 = '2026-05-07 17:00 ET';
-      const r1UpdateV2 = {
+      // === Truist R1 live update v3 (ESPN feed, May 7 ~6:30 PM ET) — captures completed R1 into roundResults ===
+      const targetStampV3 = '2026-05-07 18:30 ET';
+      const r1UpdateV3 = {
         'Sam Burns':         { position: 'T20', totalScore: -1, holesPlayed: 14, todayScore: -1, trend: 'fading' },
         'Patrick Cantlay':   { position: 'T29', totalScore: 0,  holesPlayed: 14, todayScore: 0,  trend: 'holding' },
         'Corey Conners':     { position: 'T16', totalScore: -2, holesPlayed: 10, todayScore: -2, trend: 'improving' },
@@ -370,19 +370,33 @@ export default function App() {
       };
       b = b.map(bet => {
         if (bet.tournament !== 'Truist Championship 2026' || bet.status !== 'open') return bet;
-        if (bet.liveData?.lastUpdated === targetStampV2) return bet;
-        const u = r1UpdateV2[bet.player];
+        if (bet.liveData?.lastUpdated === targetStampV3) return bet;
+        const u = r1UpdateV3[bet.player];
         if (!u) return bet;
         dirty = true;
+
+        // If R1 is complete (18 holes), capture into roundResults
+        const existingRounds = bet.roundResults || [];
+        const hasR1 = existingRounds.some(r => r.round === 1);
+        const roundResults = (u.holesPlayed === 18 && !hasR1)
+          ? [...existingRounds, { round: 1, score: u.totalScore, position: u.position }].sort((a, b) => a.round - b.round)
+          : existingRounds;
+
+        let status;
+        if (u.totalScore === null) status = 'pre-round';
+        else if (u.holesPlayed === 18) status = 'between-rounds';
+        else status = 'in-round';
+
         return {
           ...bet,
           liveData: {
             ...(bet.liveData || {}),
             ...u,
-            currentRound: 1,
-            status: u.totalScore === null ? 'pre-round' : 'in-round',
-            lastUpdated: targetStampV2,
+            currentRound: u.holesPlayed === 18 ? 2 : 1,
+            status,
+            lastUpdated: targetStampV3,
           },
+          roundResults,
         };
       });
 
@@ -587,8 +601,8 @@ function Header({ lifetimePnL, openExposure, todayPnL, owedToMe, iOwe, bets, set
       onClick={onClick}
       style={{
         cursor: onClick ? 'pointer' : 'default',
-        padding: '6px 12px',
-        flex: '1 1 140px',
+        padding: '6px 10px',
+        flex: '1 1 120px',
         minWidth: 0,
         borderRight: `1px solid ${theme.border}`,
         borderBottom: `1px solid ${theme.border}`,
@@ -596,7 +610,7 @@ function Header({ lifetimePnL, openExposure, todayPnL, owedToMe, iOwe, bets, set
       }}
     >
       <div style={{ fontSize: 9, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color, ...tabularStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color, ...tabularStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
       {sub && <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 1, ...tabularStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
     </div>
   );
@@ -826,7 +840,7 @@ function LiveTab({ bets, setBets, partners }) {
           {lastRefresh ? `Last refresh: ${lastRefresh}` : 'No leaderboard fetch yet — say "refresh" in chat'}
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
         {sorted.map(b => (
           <LivePositionCard key={b.id} bet={b} onClose={closeBet} />
         ))}
@@ -938,42 +952,53 @@ function LivePositionCard({ bet, onClose }) {
         )}
       </div>
 
-      {/* Round-by-round table (only show if any rounds completed) */}
-      {rounds.length > 0 && (
-        <div style={{ marginBottom: 10, fontSize: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, fontSize: 10, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-            {[1, 2, 3, 4].map(r => <div key={r} style={{ textAlign: 'center' }}>R{r}</div>)}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
-            {[1, 2, 3, 4].map(r => {
-              const round = rounds.find(x => x.round === r);
-              return (
-                <div key={r} style={{
-                  background: round ? theme.bgElevated : 'transparent',
-                  border: `1px solid ${round ? theme.border : 'transparent'}`,
-                  borderRadius: 6,
-                  padding: '6px 4px',
-                  textAlign: 'center',
-                  ...tabularStyle,
-                }}>
-                  {round ? (
-                    <>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: scoreColor(round.score) }}>
-                        {fmtScore(round.score)}
-                      </div>
-                      <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 2 }}>
-                        {round.position || '—'}
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 14, color: theme.textDim }}>—</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+      {/* Round-by-round grid — always shown to keep card heights consistent */}
+      <div style={{ marginBottom: 10, fontSize: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, fontSize: 10, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+          {[1, 2, 3, 4].map(r => <div key={r} style={{ textAlign: 'center' }}>R{r}</div>)}
         </div>
-      )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+          {[1, 2, 3, 4].map(r => {
+            const round = rounds.find(x => x.round === r);
+            const isCurrent = bet.liveData?.currentRound === r && bet.liveData?.status === 'in-round';
+            return (
+              <div key={r} style={{
+                background: round || isCurrent ? theme.bgElevated : 'transparent',
+                border: `1px solid ${round || isCurrent ? theme.border : theme.border + '40'}`,
+                borderRadius: 6,
+                padding: '6px 4px',
+                textAlign: 'center',
+                ...tabularStyle,
+              }}>
+                {round ? (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: scoreColor(round.score) }}>
+                      {fmtScore(round.score)}
+                    </div>
+                    <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 2 }}>
+                      F
+                    </div>
+                  </>
+                ) : isCurrent ? (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: scoreColor(bet.liveData?.todayScore) }}>
+                      {fmtScore(bet.liveData?.todayScore)}
+                    </div>
+                    <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 2 }}>
+                      thru {bet.liveData?.holesPlayed || 0}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 14, color: theme.textDim }}>—</div>
+                    <div style={{ fontSize: 10, color: theme.textDim, marginTop: 2 }}>&nbsp;</div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Bet details */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
@@ -1141,7 +1166,8 @@ function HistoryTab({ bets, setBets, onDrill }) {
       </div>
 
       <div style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: 12, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 700 }}>
           <thead>
             <tr style={{ background: theme.bgElevated, borderBottom: `1px solid ${theme.border}` }}>
               {[
@@ -1198,6 +1224,7 @@ function HistoryTab({ bets, setBets, onDrill }) {
             })}
           </tbody>
         </table>
+        </div>
         {sorted.length === 0 && (
           <div style={{ padding: 30, textAlign: 'center', color: theme.textMuted }}>
             No bets match these filters.
@@ -1559,7 +1586,8 @@ function PartnersTab({ bets, partners, payments, setPayments, partnerBalances })
           {partnerBets.length === 0 ? (
             <div style={{ padding: 24, color: theme.textMuted, fontSize: 13 }}>No bets with {selected} yet.</div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 600 }}>
               <thead>
                 <tr style={{ background: theme.bgElevated }}>
                   <th style={thStyle()}>Date</th>
@@ -1593,6 +1621,7 @@ function PartnersTab({ bets, partners, payments, setPayments, partnerBalances })
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 
