@@ -582,20 +582,22 @@ function Header({ lifetimePnL, openExposure, todayPnL, owedToMe, iOwe, bets, set
 
   const rows = [meRow, ...partnerRows];
 
-  const Cell = ({ label, value, color = theme.text, onClick, sub, hideOnMobile = false }) => (
+  const Cell = ({ label, value, color = theme.text, onClick, sub }) => (
     <div
       onClick={onClick}
       style={{
         cursor: onClick ? 'pointer' : 'default',
         padding: '6px 12px',
-        flex: 1,
-        minWidth: 110,
+        flex: '1 1 140px',
+        minWidth: 0,
         borderRight: `1px solid ${theme.border}`,
+        borderBottom: `1px solid ${theme.border}`,
+        boxSizing: 'border-box',
       }}
     >
       <div style={{ fontSize: 9, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color, ...tabularStyle }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 1, ...tabularStyle }}>{sub}</div>}
+      <div style={{ fontSize: 15, fontWeight: 600, color, ...tabularStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 1, ...tabularStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
     </div>
   );
 
@@ -661,48 +663,51 @@ function Header({ lifetimePnL, openExposure, todayPnL, owedToMe, iOwe, bets, set
               key={r.name}
               style={{
                 display: 'flex',
-                alignItems: 'stretch',
+                flexDirection: 'column',
                 borderBottom: isLast ? 'none' : `1px solid ${theme.border}`,
               }}
             >
-              {/* Name pill */}
+              {/* Name pill — full width on its own row */}
               <div style={{
                 padding: '6px 14px',
-                minWidth: 100,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                borderRight: `1px solid ${theme.border}`,
+                borderBottom: `1px solid ${theme.border}`,
+                background: theme.bgElevated,
               }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.color }} />
-                <div style={{ fontSize: 13, fontWeight: 600, color: r.color, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: r.color, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   {r.name}
                 </div>
               </div>
-              <Cell
-                label="Lifetime P&L"
-                value={fmt(r.lifetimePnL, { sign: true })}
-                color={r.lifetimePnL >= 0 ? theme.green : theme.red}
-                onClick={() => r.closedBets.length > 0 && onDrill(`${r.name} — Lifetime P&L`, r.closedBets)}
-              />
-              <Cell
-                label="Open Exposure"
-                value={fmt(r.openExposure)}
-                sub={`${r.openBets.length} open`}
-                onClick={() => r.openBets.length > 0 && onDrill(`${r.name} — Open Positions`, r.openBets)}
-              />
-              <Cell
-                label="Today's P&L"
-                value={fmt(r.todayPnL, { sign: true })}
-                color={r.todayPnL > 0 ? theme.green : r.todayPnL < 0 ? theme.red : theme.text}
-                onClick={() => r.todayBets.length > 0 && onDrill(`${r.name} — Today's Settled`, r.todayBets)}
-              />
-              <Cell
-                label="Balance"
-                value={fmt(Math.abs(r.balance))}
-                color={balanceColor}
-                sub={balanceSub}
-              />
+              {/* Metrics grid — wraps to 2x2 on mobile, 1x4 on desktop */}
+              <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                <Cell
+                  label="Lifetime P&L"
+                  value={fmt(r.lifetimePnL, { sign: true })}
+                  color={r.lifetimePnL >= 0 ? theme.green : theme.red}
+                  onClick={() => r.closedBets.length > 0 && onDrill(`${r.name} — Lifetime P&L`, r.closedBets)}
+                />
+                <Cell
+                  label="Open Exposure"
+                  value={fmt(r.openExposure)}
+                  sub={`${r.openBets.length} open`}
+                  onClick={() => r.openBets.length > 0 && onDrill(`${r.name} — Open Positions`, r.openBets)}
+                />
+                <Cell
+                  label="Today's P&L"
+                  value={fmt(r.todayPnL, { sign: true })}
+                  color={r.todayPnL > 0 ? theme.green : r.todayPnL < 0 ? theme.red : theme.text}
+                  onClick={() => r.todayBets.length > 0 && onDrill(`${r.name} — Today's Settled`, r.todayBets)}
+                />
+                <Cell
+                  label="Balance"
+                  value={fmt(Math.abs(r.balance))}
+                  color={balanceColor}
+                  sub={balanceSub}
+                />
+              </div>
             </div>
           );
         })}
