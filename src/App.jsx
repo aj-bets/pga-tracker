@@ -677,7 +677,7 @@ function Header({ lifetimePnL, openExposure, todayPnL, owedToMe, iOwe, bets, set
                 borderBottom: isLast ? 'none' : `1px solid ${theme.border}`,
               }}
             >
-              {/* Name pill — left side, vertical */}
+              {/* Name pill — fixed width so all rows align */}
               <div style={{
                 padding: '4px 8px',
                 display: 'flex',
@@ -685,9 +685,11 @@ function Header({ lifetimePnL, openExposure, todayPnL, owedToMe, iOwe, bets, set
                 gap: 5,
                 borderRight: `1px solid ${theme.border}`,
                 flexShrink: 0,
+                width: 70,
+                boxSizing: 'border-box',
               }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
-                <div style={{ fontSize: 11, fontWeight: 700, color: r.color, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: r.color, textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {r.name}
                 </div>
               </div>
@@ -742,7 +744,7 @@ function Tabs({ active, onChange, closedCount }) {
     { id: 'settings', label: 'Settings' },
   ];
   return (
-    <div style={{ background: theme.bgCard, borderBottom: `1px solid ${theme.border}`, position: 'sticky', top: 0, zIndex: 20 }}>
+    <div style={{ background: theme.bgCard, borderBottom: `1px solid ${theme.border}`, position: 'sticky', top: 0, zIndex: 20, paddingTop: 'env(safe-area-inset-top, 0)' }}>
       <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', padding: '0 12px' }}>
         {tabs.map(t => (
           <button
