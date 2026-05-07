@@ -605,9 +605,6 @@ function Header({ lifetimePnL, openExposure, todayPnL, owedToMe, iOwe, bets, set
     <div style={{
       background: theme.bgCard,
       borderBottom: `1px solid ${theme.border}`,
-      position: 'sticky',
-      top: 0,
-      zIndex: 10,
     }}>
       {/* Top bar: logo + actions */}
       <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', padding: '8px 16px', borderBottom: `1px solid ${theme.border}` }}>
