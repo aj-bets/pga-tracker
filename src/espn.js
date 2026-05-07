@@ -2,6 +2,13 @@
 
 const ENDPOINT = '/api/leaderboard';
 
+function parseRelative(s) {
+  if (s === 'E' || s === undefined || s === null) return 0;
+  if (s === '-' || s === '') return null;
+  const n = parseFloat(String(s).replace('+', ''));
+  return isNaN(n) ? null : n;
+}
+
 export async function fetchESPNLeaderboard() {
   const res = await fetch(ENDPOINT);
   if (!res.ok) throw new Error(`ESPN fetch failed: ${res.status}`);
@@ -13,56 +20,77 @@ export async function fetchESPNLeaderboard() {
   const tournament = event.name;
   const competitors = event.competitions?.[0]?.competitors || [];
 
-  // Build position lookup. ESPN doesn't always send a position string directly,
-  // so we sort by score and assign T-positions based on ties.
   const players = competitors.map(c => {
-    const lineScore = c.linescores?.[0];
-    const scoreDisplay = lineScore?.displayValue;
-    // Most recent period in linescores tells us holes played in current round
-    const holes = lineScore?.linescores?.length || 0;
+    const allRounds = c.linescores || [];
+
+    const roundResults = [];
+    let currentRound = 1;
+    let currentRoundHoles = 0;
+    let currentRoundScore = null;
+
+    allRounds.forEach((rd, idx) => {
+      const roundNum = rd.period || idx + 1;
+      const holes = rd.linescores?.length || 0;
+      const score = parseRelative(rd.displayValue);
+
+      if (holes >= 18) {
+        roundResults.push({ round: roundNum, score, position: null });
+      } else if (holes > 0) {
+        currentRound = roundNum;
+        currentRoundHoles = holes;
+        currentRoundScore = score;
+      }
+    });
+
+    if (currentRoundHoles === 0 && roundResults.length > 0) {
+      currentRound = Math.min(4, roundResults.length + 1);
+    }
+
     return {
       name: c.athlete?.fullName,
       shortName: c.athlete?.shortName,
-      totalDisplay: c.score, // overall total ('-3', 'E', '+1', etc.)
-      todayDisplay: scoreDisplay, // round score so far
-      holesPlayed: holes,
-      teeTime: lineScore?.statistics?.categories?.[0]?.stats?.find(s => s.displayValue?.includes(':'))?.displayValue || null,
+      totalDisplay: c.score,
+      todayScore: currentRoundHoles > 0 ? currentRoundScore : null,
+      holesPlayed: currentRoundHoles,
+      currentRound,
+      roundResults,
     };
   });
 
-  // Compute positions by sorting on numeric total score
-  const parseScore = (s) => {
+  const parseTotal = (s) => {
     if (s === 'E' || s === undefined || s === null) return 0;
-    if (s === '-' || s === '') return 999; // not yet started
-    return parseFloat(s.replace('+', ''));
+    if (s === '-' || s === '') return 999;
+    const n = parseFloat(String(s).replace('+', ''));
+    return isNaN(n) ? 999 : n;
   };
-  const sorted = [...players].sort((a, b) => parseScore(a.totalDisplay) - parseScore(b.totalDisplay));
-  let lastScore = null;
-  let lastPos = 0;
-  let actualPos = 0;
+  const sorted = [...players].sort((a, b) => parseTotal(a.totalDisplay) - parseTotal(b.totalDisplay));
   const positions = {};
-  sorted.forEach((p) => {
+  let actualPos = 0;
+  let prevScore = null;
+  let prevDisplayPos = 0;
+  sorted.forEach(p => {
     actualPos += 1;
-    const score = parseScore(p.totalDisplay);
+    const score = parseTotal(p.totalDisplay);
     if (score === 999) {
       positions[p.name] = '—';
-    } else if (score === lastScore) {
-      positions[p.name] = `T${lastPos}`;
+      return;
+    }
+    if (score === prevScore) {
+      positions[p.name] = `${prevDisplayPos}`;
     } else {
-      lastScore = score;
-      lastPos = actualPos;
-      positions[p.name] = `${lastPos}`;
+      prevScore = score;
+      prevDisplayPos = actualPos;
+      positions[p.name] = `${actualPos}`;
     }
   });
-  // Mark ties properly: any score with multiple players gets a T prefix
-  const scoreCounts = {};
+  const counts = {};
   sorted.forEach(p => {
-    const s = parseScore(p.totalDisplay);
-    if (s !== 999) scoreCounts[s] = (scoreCounts[s] || 0) + 1;
+    const s = parseTotal(p.totalDisplay);
+    if (s !== 999) counts[s] = (counts[s] || 0) + 1;
   });
   sorted.forEach(p => {
-    const s = parseScore(p.totalDisplay);
-    if (s !== 999 && scoreCounts[s] > 1 && !positions[p.name].startsWith('T')) {
+    const s = parseTotal(p.totalDisplay);
+    if (s !== 999 && counts[s] > 1 && positions[p.name] && !positions[p.name].startsWith('T')) {
       positions[p.name] = `T${positions[p.name]}`;
     }
   });
@@ -73,13 +101,11 @@ export async function fetchESPNLeaderboard() {
     players: players.map(p => ({
       ...p,
       position: positions[p.name],
-      totalScore: p.totalDisplay === 'E' ? 0 : parseScore(p.totalDisplay) === 999 ? null : parseScore(p.totalDisplay),
-      todayScore: p.todayDisplay === 'E' ? 0 : p.todayDisplay && p.todayDisplay !== '-' ? parseScore(p.todayDisplay) : null,
+      totalScore: parseTotal(p.totalDisplay) === 999 ? null : parseRelative(p.totalDisplay),
     })),
   };
 }
 
-// Determine trend by comparing today's score to par. Simple heuristic.
 function trendFor(todayScore) {
   if (todayScore === null || todayScore === undefined) return null;
   if (todayScore < 0) return 'improving';
@@ -107,6 +133,24 @@ export function applyLeaderboardToBets(bets, leaderboard, tournamentMatcher) {
     if (!p) return bet;
 
     changed += 1;
+
+    const seenRounds = new Set();
+    const mergedRoundResults = [];
+    p.roundResults.forEach(rr => {
+      mergedRoundResults.push({ ...rr, position: rr.position || p.position });
+      seenRounds.add(rr.round);
+    });
+    (bet.roundResults || []).forEach(rr => {
+      if (!seenRounds.has(rr.round)) mergedRoundResults.push(rr);
+    });
+    mergedRoundResults.sort((a, b) => a.round - b.round);
+
+    let liveStatus;
+    if (p.totalScore === null) liveStatus = 'pre-round';
+    else if (p.holesPlayed === 0 && p.roundResults.length > 0) liveStatus = 'between-rounds';
+    else if (p.holesPlayed >= 18) liveStatus = 'complete';
+    else liveStatus = 'in-round';
+
     return {
       ...bet,
       liveData: {
@@ -116,10 +160,11 @@ export function applyLeaderboardToBets(bets, leaderboard, tournamentMatcher) {
         todayScore: p.todayScore,
         holesPlayed: p.holesPlayed,
         trend: trendFor(p.todayScore),
-        currentRound: 1,
-        status: p.totalScore === null ? 'pre-round' : (p.holesPlayed >= 18 ? 'complete' : 'in-round'),
+        currentRound: p.currentRound,
+        status: liveStatus,
         lastUpdated: `${stamp} ET`,
       },
+      roundResults: mergedRoundResults,
     };
   });
 
