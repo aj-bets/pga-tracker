@@ -943,12 +943,6 @@ function LivePositionCard({ bet, onClose }) {
             </div>
           </div>
         )}
-        {!isPreRound && live.todayScore !== null && live.todayScore !== undefined && !isComplete && (
-          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${theme.border}`, fontSize: 12, color: theme.textMuted }}>
-            Today: <span style={{ color: scoreColor(live.todayScore), ...tabularStyle, fontWeight: 600 }}>{fmtScore(live.todayScore)}</span>
-            {live.currentRound && <span> · R{live.currentRound}</span>}
-          </div>
-        )}
       </div>
 
       {/* Round-by-round grid — always shown to keep card heights consistent */}
