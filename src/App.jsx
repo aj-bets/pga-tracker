@@ -601,17 +601,16 @@ function Header({ lifetimePnL, openExposure, todayPnL, owedToMe, iOwe, bets, set
       onClick={onClick}
       style={{
         cursor: onClick ? 'pointer' : 'default',
-        padding: '6px 10px',
-        flex: '1 1 120px',
+        padding: '6px 8px',
+        flex: '1 1 0',
         minWidth: 0,
         borderRight: `1px solid ${theme.border}`,
-        borderBottom: `1px solid ${theme.border}`,
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ fontSize: 9, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color, ...tabularStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: theme.textMuted, marginTop: 1, ...tabularStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
+      <div style={{ fontSize: 8, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color, ...tabularStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+      {sub && <div style={{ fontSize: 9, color: theme.textMuted, marginTop: 1, ...tabularStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
     </div>
   );
 
@@ -674,49 +673,47 @@ function Header({ lifetimePnL, openExposure, todayPnL, owedToMe, iOwe, bets, set
               key={r.name}
               style={{
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'stretch',
                 borderBottom: isLast ? 'none' : `1px solid ${theme.border}`,
               }}
             >
-              {/* Name pill — full width on its own row */}
+              {/* Name pill — left side, vertical */}
               <div style={{
-                padding: '6px 14px',
+                padding: '4px 8px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
-                borderBottom: `1px solid ${theme.border}`,
-                background: theme.bgElevated,
+                gap: 5,
+                borderRight: `1px solid ${theme.border}`,
+                flexShrink: 0,
               }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.color }} />
-                <div style={{ fontSize: 12, fontWeight: 600, color: r.color, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
+                <div style={{ fontSize: 11, fontWeight: 700, color: r.color, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   {r.name}
                 </div>
               </div>
-              {/* Metrics grid — wraps to 2x2 on mobile, 1x4 on desktop */}
-              <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+              {/* Metrics — 4 in a row, fit available width */}
+              <div style={{ display: 'flex', flex: 1, minWidth: 0 }}>
                 <Cell
-                  label="Lifetime P&L"
+                  label="P&L"
                   value={fmt(r.lifetimePnL, { sign: true })}
                   color={r.lifetimePnL >= 0 ? theme.green : theme.red}
                   onClick={() => r.closedBets.length > 0 && onDrill(`${r.name} — Lifetime P&L`, r.closedBets)}
                 />
                 <Cell
-                  label="Open Exposure"
+                  label="Open"
                   value={fmt(r.openExposure)}
-                  sub={`${r.openBets.length} open`}
                   onClick={() => r.openBets.length > 0 && onDrill(`${r.name} — Open Positions`, r.openBets)}
                 />
                 <Cell
-                  label="Today's P&L"
+                  label="Today"
                   value={fmt(r.todayPnL, { sign: true })}
                   color={r.todayPnL > 0 ? theme.green : r.todayPnL < 0 ? theme.red : theme.text}
                   onClick={() => r.todayBets.length > 0 && onDrill(`${r.name} — Today's Settled`, r.todayBets)}
                 />
                 <Cell
-                  label="Balance"
+                  label="Bal"
                   value={fmt(Math.abs(r.balance))}
                   color={balanceColor}
-                  sub={balanceSub}
                 />
               </div>
             </div>
@@ -745,7 +742,7 @@ function Tabs({ active, onChange, closedCount }) {
     { id: 'settings', label: 'Settings' },
   ];
   return (
-    <div style={{ background: theme.bgCard, borderBottom: `1px solid ${theme.border}` }}>
+    <div style={{ background: theme.bgCard, borderBottom: `1px solid ${theme.border}`, position: 'sticky', top: 0, zIndex: 20 }}>
       <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', padding: '0 12px' }}>
         {tabs.map(t => (
           <button
