@@ -1160,7 +1160,7 @@ function HistoryTab({ bets, setBets, onDrill }) {
 
       <div style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 700 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 800 }}>
           <thead>
             <tr style={{ background: theme.bgElevated, borderBottom: `1px solid ${theme.border}` }}>
               {[
@@ -1171,18 +1171,19 @@ function HistoryTab({ bets, setBets, onDrill }) {
                 ['outcome', 'Outcome'],
                 ['cost', 'My Cost'],
                 ['pnl', 'My P&L'],
+                [null, 'Actions'],
               ].map(([key, label]) => (
-                <th key={key} onClick={() => toggleSort(key)} style={{
+                <th key={label} onClick={() => key && toggleSort(key)} style={{
                   padding: '10px 12px',
                   textAlign: 'left',
                   fontSize: 11,
                   textTransform: 'uppercase',
                   letterSpacing: 0.5,
                   color: theme.textMuted,
-                  cursor: 'pointer',
+                  cursor: key ? 'pointer' : 'default',
                   fontWeight: 600,
                 }}>
-                  {label} {sortBy === key && (sortDir === 'asc' ? '↑' : '↓')}
+                  {label} {key && sortBy === key && (sortDir === 'asc' ? '↑' : '↓')}
                 </th>
               ))}
             </tr>
@@ -1190,6 +1191,46 @@ function HistoryTab({ bets, setBets, onDrill }) {
           <tbody>
             {sorted.map(b => {
               const pnl = myPnL(b);
+              const reopenBet = (e) => {
+                e.stopPropagation();
+                if (!confirm(`Reopen this bet? It will move back to the Live tab.`)) return;
+                setBets(bets.map(x => x.id === b.id ? {
+                  ...x,
+                  status: 'open',
+                  outcome: null,
+                  sellPrice: null,
+                  closedDate: null,
+                } : x));
+              };
+              const changeOutcome = (e) => {
+                e.stopPropagation();
+                const choice = prompt(`Change outcome for ${b.player}.\n\nType: won, lost, or sold\n(Currently: ${b.outcome})`, b.outcome || '');
+                if (!choice) return;
+                const normalized = choice.toLowerCase().trim();
+                if (!['won', 'lost', 'sold'].includes(normalized)) {
+                  alert('Invalid outcome. Must be won, lost, or sold.');
+                  return;
+                }
+                let sellPrice = b.sellPrice;
+                if (normalized === 'sold') {
+                  const price = prompt('Sell price in cents per contract (e.g. 67):', b.sellPrice || '');
+                  if (price === null) return;
+                  sellPrice = parseFloat(price);
+                  if (isNaN(sellPrice)) { alert('Invalid price'); return; }
+                } else {
+                  sellPrice = null;
+                }
+                setBets(bets.map(x => x.id === b.id ? {
+                  ...x,
+                  outcome: normalized,
+                  sellPrice,
+                } : x));
+              };
+              const deleteBet = (e) => {
+                e.stopPropagation();
+                if (!confirm(`Delete this bet permanently?\n\n${b.player} — ${b.tournament}\n\nThis cannot be undone.`)) return;
+                setBets(bets.filter(x => x.id !== b.id));
+              };
               return (
                 <tr
                   key={b.id}
@@ -1211,6 +1252,13 @@ function HistoryTab({ bets, setBets, onDrill }) {
                   <td style={{ ...tdStyle(), ...tabularStyle }}>{fmt(myCost(b))}</td>
                   <td style={{ ...tdStyle(), ...tabularStyle, color: pnl >= 0 ? theme.green : theme.red, fontWeight: 600 }}>
                     {fmt(pnl, { sign: true })}
+                  </td>
+                  <td style={tdStyle()}>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button onClick={reopenBet} title="Reopen bet (back to Live)" style={iconBtnStyle(theme.teal)}>↻</button>
+                      <button onClick={changeOutcome} title="Change outcome" style={iconBtnStyle(theme.textMuted)}>✎</button>
+                      <button onClick={deleteBet} title="Delete bet" style={iconBtnStyle(theme.red)}>×</button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -2125,6 +2173,20 @@ const btnSecondary = () => ({
   alignItems: 'center',
   gap: 6,
   fontFamily: fontStack,
+});
+
+const iconBtnStyle = (color = '#fff') => ({
+  background: 'transparent',
+  color,
+  border: `1px solid ${theme.border}`,
+  borderRadius: 4,
+  padding: '2px 8px',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+  fontFamily: fontStack,
+  lineHeight: 1.2,
+  minWidth: 28,
 });
 
 const inputStyle = () => ({
