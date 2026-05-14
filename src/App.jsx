@@ -2004,20 +2004,32 @@ function AddBetModal({ partners, onClose, onSave, initial = null }) {  const [fo
           <FormField label="Player"><input value={form.player} onChange={e => setForm({ ...form, player: e.target.value })} style={inputStyle()} /></FormField>
           <FormField label="Tournament"><input value={form.tournament} onChange={e => setForm({ ...form, tournament: e.target.value })} style={inputStyle()} /></FormField>
           <FormField label="Market type">
-            <select value={form.marketType} onChange={e => setForm({ ...form, marketType: e.target.value })} style={inputStyle()}>
-              <option>Outright</option>
-              <option>Top 3</option>
-              <option>Top 5</option>
-              <option>Top 10</option>
-              <option>Top 20</option>
-              <option>R1 Leader</option>
-              <option>R2 Leader</option>
-              <option>R3 Leader</option>
-              <option>Make Cut</option>
-              <option>Miss Cut</option>
-              <option>H2H</option>
-              <option>Other</option>
-            </select>
+            <input
+              list="market-type-options"
+              value={form.marketType}
+              onChange={e => setForm({ ...form, marketType: e.target.value })}
+              style={inputStyle()}
+              placeholder="e.g. Outright, Top 10, H2H"
+            />
+            <datalist id="market-type-options">
+              <option value="Outright" />
+              <option value="Top 3" />
+              <option value="Top 5" />
+              <option value="Top 10" />
+              <option value="Top 20" />
+              <option value="R1 Leader" />
+              <option value="R2 Leader" />
+              <option value="R3 Leader" />
+              <option value="R4 Leader" />
+              <option value="36-Hole Leader" />
+              <option value="54-Hole Leader" />
+              <option value="Make Cut" />
+              <option value="Miss Cut" />
+              <option value="H2H" />
+              <option value="3-Ball" />
+              <option value="Nationality" />
+              <option value="First-Round 6-shooter" />
+            </datalist>
           </FormField>
           <FormField label="Status">
             <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inputStyle()}>
