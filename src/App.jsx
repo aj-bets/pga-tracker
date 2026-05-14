@@ -1398,13 +1398,6 @@ function AnalyticsTab({ bets, onDrill }) {
   const bestBet = [...closed].sort((a, b) => myPnL(b) - myPnL(a))[0];
   const worstBet = [...closed].sort((a, b) => myPnL(a) - myPnL(b))[0];
 
-  const Card = ({ title, children, style = {} }) => (
-    <div style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 16, ...style }}>
-      <div style={{ fontSize: 11, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 12 }}>{title}</div>
-      {children}
-    </div>
-  );
-
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <Card title="Lifetime P&L Curve (My Share)">
@@ -1538,6 +1531,7 @@ function AnalyticsTab({ bets, onDrill }) {
 // === Partners Tab ===
 function PartnersTab({ bets, partners, payments, setPayments, partnerBalances }) {
   const [selected, setSelected] = useState(partners[0]?.name || null);
+  const [showLogPayment, setShowLogPayment] = useState(false);
 
   useEffect(() => {
     if (!selected && partners.length > 0) setSelected(partners[0].name);
@@ -1626,6 +1620,7 @@ function PartnersTab({ bets, partners, payments, setPayments, partnerBalances })
           })}
         </select>
         <button onClick={settle} style={btnPrimary()}>Mark Settled</button>
+        <button onClick={() => setShowLogPayment(true)} style={btnSecondary()}>+ Log Payment</button>
         <button onClick={exportStatement} style={btnSecondary()}><Download size={14} /> Export Statement</button>
         <button
           onClick={() => {
@@ -1723,6 +1718,75 @@ function PartnersTab({ bets, partners, payments, setPayments, partnerBalances })
           )}
         </div>
       </div>
+
+      {showLogPayment && (
+        <LogPaymentModal
+          partner={selected}
+          onClose={() => setShowLogPayment(false)}
+          onSave={(payment) => {
+            setPayments([...payments, payment]);
+            setShowLogPayment(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function LogPaymentModal({ partner, onClose, onSave }) {
+  const [direction, setDirection] = useState('to');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(today());
+  const [note, setNote] = useState('');
+
+  const submit = () => {
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) { alert('Enter a positive amount.'); return; }
+    onSave({
+      id: `pay-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      partner,
+      amount: amt,
+      direction,
+      date,
+      note: note.trim(),
+    });
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16,
+    }} onClick={onClose}>
+      <div style={{
+        background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: 12,
+        padding: 20, maxWidth: 440, width: '100%',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Log Payment — {partner}</div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: theme.textMuted, cursor: 'pointer', fontSize: 20 }}>×</button>
+        </div>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <FormField label="Direction">
+            <select value={direction} onChange={e => setDirection(e.target.value)} style={inputStyle()}>
+              <option value="to">I paid {partner}</option>
+              <option value="from">{partner} paid me</option>
+            </select>
+          </FormField>
+          <FormField label="Amount ($)">
+            <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} style={inputStyle()} placeholder="0.00" autoFocus />
+          </FormField>
+          <FormField label="Date">
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle()} />
+          </FormField>
+          <FormField label="Note (optional)">
+            <input value={note} onChange={e => setNote(e.target.value)} style={inputStyle()} placeholder="e.g. Venmo, Cadillac winnings, capital for Truist" />
+          </FormField>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button onClick={onClose} style={btnSecondary()}>Cancel</button>
+            <button onClick={submit} style={btnPrimary()}>Save</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1783,13 +1847,6 @@ function SettingsTab({ settings, setSettings, partners, setPartners, bets, setBe
     };
     reader.readAsText(file);
   };
-
-  const Card = ({ title, children }) => (
-    <div style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 16 }}>
-      <div style={{ fontSize: 11, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 12 }}>{title}</div>
-      {children}
-    </div>
-  );
 
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))' }}>
@@ -1918,6 +1975,15 @@ function FormField({ label, children }) {
   );
 }
 
+function Card({ title, children, style = {} }) {
+  return (
+    <div style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 16, ...style }}>
+      <div style={{ fontSize: 11, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 12 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
 function AddBetModal({ partners, onClose, onSave, initial = null }) {  const [form, setForm] = useState(initial || {
     player: '',
     tournament: '',
@@ -1945,13 +2011,35 @@ function AddBetModal({ partners, onClose, onSave, initial = null }) {  const [fo
       .split(/\s*[/,]\s*|\s+and\s+/i)
       .map(s => s.trim())
       .filter(Boolean);
-    const splits = parts.map(p => {
-      // Match "Name 33" or "Name 33%" — name can be multi-word
+    if (parts.length === 0) return null;
+
+    // Try to parse each entry as "Name N" or "Name N%" first
+    const parsed = parts.map(p => {
       const m = p.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*%?$/);
-      if (!m) return null;
-      return { name: m[1].trim(), pct: parseFloat(m[2]) };
+      if (m) return { name: m[1].trim(), pct: parseFloat(m[2]), hasPct: true };
+      // No number — just a name
+      if (p.length > 0) return { name: p.trim(), pct: null, hasPct: false };
+      return null;
     }).filter(Boolean);
-    if (splits.length === 0) return null;
+
+    if (parsed.length === 0) return null;
+
+    const allHavePct = parsed.every(p => p.hasPct);
+    const nonHavePct = parsed.every(p => !p.hasPct);
+
+    if (nonHavePct) {
+      // Pure name list — distribute evenly. Round to integers, give remainder to first.
+      const base = Math.floor(100 / parsed.length);
+      const remainder = 100 - base * parsed.length;
+      const splits = parsed.map((p, i) => ({ name: p.name, pct: base + (i === 0 ? remainder : 0) }));
+      return { splits };
+    }
+
+    if (!allHavePct) {
+      return { error: 'Either give percentages for everyone (e.g. "Me 50 / Bird 50") or just names to auto-split evenly (e.g. "Me, Bird, Joey C").' };
+    }
+
+    const splits = parsed.map(p => ({ name: p.name, pct: p.pct }));
     const total = splits.reduce((s, x) => s + x.pct, 0);
     if (Math.abs(total - 100) > 0.1) return { error: `Splits total ${total}%, must equal 100%.` };
     return { splits };
@@ -2043,8 +2131,8 @@ function AddBetModal({ partners, onClose, onSave, initial = null }) {  const [fo
           <FormField label="# contracts"><input type="number" value={form.contracts} onChange={e => setForm({ ...form, contracts: e.target.value })} style={inputStyle()} /></FormField>
           <FormField label="Total cost ($)"><input type="number" step="0.01" value={form.totalCost} onChange={e => setForm({ ...form, totalCost: e.target.value })} style={inputStyle()} /></FormField>
           <FormField label="Max payout ($)"><input type="number" step="0.01" value={form.maxPayout} onChange={e => setForm({ ...form, maxPayout: e.target.value })} style={inputStyle()} /></FormField>
-          <FormField label="Splits (must sum to 100)">
-            <input value={splitText} onChange={e => setSplitText(e.target.value)} style={inputStyle()} placeholder="Me 50 / Bird 50  or  Me 33, Bird 33, Joey C 34" />
+          <FormField label="Splits">
+            <input value={splitText} onChange={e => setSplitText(e.target.value)} style={inputStyle()} placeholder="Me, Bird, Joey C  (auto-even)  OR  Me 50 / Bird 50" />
           </FormField>
           <FormField label="Entry date"><input type="date" value={form.entryDate} onChange={e => setForm({ ...form, entryDate: e.target.value })} style={inputStyle()} /></FormField>
           {form.status === 'closed' && (
