@@ -1866,8 +1866,16 @@ function SettingsTab({ settings, setSettings, partners, setPartners, bets, setBe
 }
 
 // === Add Bet Modal ===
-function AddBetModal({ partners, onClose, onSave, initial = null }) {
-  const [form, setForm] = useState(initial || {
+function FormField({ label, children }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function AddBetModal({ partners, onClose, onSave, initial = null }) {  const [form, setForm] = useState(initial || {
     player: '',
     tournament: '',
     marketType: 'Outright',
@@ -1916,13 +1924,6 @@ function AddBetModal({ partners, onClose, onSave, initial = null }) {
     });
   };
 
-  const F = ({ label, children }) => (
-    <div>
-      <div style={{ fontSize: 11, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
-      {children}
-    </div>
-  );
-
   return (
     <div style={{
       position: 'fixed',
@@ -1951,9 +1952,9 @@ function AddBetModal({ partners, onClose, onSave, initial = null }) {
           </button>
         </div>
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
-          <F label="Player"><input value={form.player} onChange={e => setForm({ ...form, player: e.target.value })} style={inputStyle()} /></F>
-          <F label="Tournament"><input value={form.tournament} onChange={e => setForm({ ...form, tournament: e.target.value })} style={inputStyle()} /></F>
-          <F label="Market type">
+          <FormField label="Player"><input value={form.player} onChange={e => setForm({ ...form, player: e.target.value })} style={inputStyle()} /></FormField>
+          <FormField label="Tournament"><input value={form.tournament} onChange={e => setForm({ ...form, tournament: e.target.value })} style={inputStyle()} /></FormField>
+          <FormField label="Market type">
             <select value={form.marketType} onChange={e => setForm({ ...form, marketType: e.target.value })} style={inputStyle()}>
               <option>Outright</option>
               <option>Top 3</option>
@@ -1968,33 +1969,33 @@ function AddBetModal({ partners, onClose, onSave, initial = null }) {
               <option>H2H</option>
               <option>Other</option>
             </select>
-          </F>
-          <F label="Status">
+          </FormField>
+          <FormField label="Status">
             <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={inputStyle()}>
               <option value="open">Open</option>
               <option value="closed">Closed</option>
             </select>
-          </F>
-          <F label="Entry price (¢)"><input type="number" value={form.entryPrice} onChange={e => setForm({ ...form, entryPrice: e.target.value })} style={inputStyle()} /></F>
-          <F label="# contracts"><input type="number" value={form.contracts} onChange={e => setForm({ ...form, contracts: e.target.value })} style={inputStyle()} /></F>
-          <F label="Total cost ($)"><input type="number" step="0.01" value={form.totalCost} onChange={e => setForm({ ...form, totalCost: e.target.value })} style={inputStyle()} /></F>
-          <F label="Max payout ($)"><input type="number" step="0.01" value={form.maxPayout} onChange={e => setForm({ ...form, maxPayout: e.target.value })} style={inputStyle()} /></F>
-          <F label="Splits (must sum to 100)">
+          </FormField>
+          <FormField label="Entry price (¢)"><input type="number" value={form.entryPrice} onChange={e => setForm({ ...form, entryPrice: e.target.value })} style={inputStyle()} /></FormField>
+          <FormField label="# contracts"><input type="number" value={form.contracts} onChange={e => setForm({ ...form, contracts: e.target.value })} style={inputStyle()} /></FormField>
+          <FormField label="Total cost ($)"><input type="number" step="0.01" value={form.totalCost} onChange={e => setForm({ ...form, totalCost: e.target.value })} style={inputStyle()} /></FormField>
+          <FormField label="Max payout ($)"><input type="number" step="0.01" value={form.maxPayout} onChange={e => setForm({ ...form, maxPayout: e.target.value })} style={inputStyle()} /></FormField>
+          <FormField label="Splits (must sum to 100)">
             <input value={splitText} onChange={e => setSplitText(e.target.value)} style={inputStyle()} placeholder="Me 60 / Alex 40" />
-          </F>
-          <F label="Entry date"><input type="date" value={form.entryDate} onChange={e => setForm({ ...form, entryDate: e.target.value })} style={inputStyle()} /></F>
+          </FormField>
+          <FormField label="Entry date"><input type="date" value={form.entryDate} onChange={e => setForm({ ...form, entryDate: e.target.value })} style={inputStyle()} /></FormField>
           {form.status === 'closed' && (
             <>
-              <F label="Outcome">
+              <FormField label="Outcome">
                 <select value={form.outcome} onChange={e => setForm({ ...form, outcome: e.target.value })} style={inputStyle()}>
                   <option value="won">Won</option>
                   <option value="lost">Lost</option>
                   <option value="sold">Sold early</option>
                 </select>
-              </F>
-              <F label="Closed date"><input type="date" value={form.closedDate} onChange={e => setForm({ ...form, closedDate: e.target.value })} style={inputStyle()} /></F>
+              </FormField>
+              <FormField label="Closed date"><input type="date" value={form.closedDate} onChange={e => setForm({ ...form, closedDate: e.target.value })} style={inputStyle()} /></FormField>
               {form.outcome === 'sold' && (
-                <F label="Sell price (¢)"><input type="number" value={form.sellPrice} onChange={e => setForm({ ...form, sellPrice: e.target.value })} style={inputStyle()} /></F>
+                <FormField label="Sell price (¢)"><input type="number" value={form.sellPrice} onChange={e => setForm({ ...form, sellPrice: e.target.value })} style={inputStyle()} /></FormField>
               )}
             </>
           )}
