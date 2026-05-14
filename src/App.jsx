@@ -415,6 +415,22 @@ export default function App() {
         await saveData('pga:normalize:25dollar:v1', true);
       }
 
+      // Auto-register any partner names that appear in bet splits but aren't in partners list
+      const existingPartnerNames = new Set(p.map(x => x.name.toLowerCase()));
+      existingPartnerNames.add('me');
+      const partnersFromBets = new Set();
+      b.forEach(bet => {
+        (bet.splits || []).forEach(s => {
+          if (s.name && !existingPartnerNames.has(s.name.toLowerCase())) {
+            partnersFromBets.add(s.name);
+          }
+        });
+      });
+      if (partnersFromBets.size > 0) {
+        partnersFromBets.forEach(name => p.push({ name, defaultSplit: null }));
+        dirty = true;
+      }
+
       // Immediate persist if anything was added/updated, before relying on render-cycle saves
       if (dirty) {
         await saveData(STORAGE_KEYS.bets, b);
@@ -464,6 +480,20 @@ export default function App() {
   // === Drill helpers ===
   const drillTo = (title, betList) => setDrillDown({ title, bets: betList });
 
+  // === Auto-register any new partner names found in a bet's splits ===
+  const addBetWithPartners = (bet) => {
+    const existingNames = new Set(partners.map(p => p.name.toLowerCase()));
+    existingNames.add('me'); // "Me" is the owner, not a partner
+    const newPartnerNames = (bet.splits || [])
+      .map(s => s.name)
+      .filter(name => name && !existingNames.has(name.toLowerCase()));
+    if (newPartnerNames.length > 0) {
+      const newPartners = newPartnerNames.map(name => ({ name, defaultSplit: null }));
+      setPartners([...partners, ...newPartners]);
+    }
+    setBets([...bets, bet]);
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', background: theme.bg, color: theme.text, fontFamily: fontStack, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -485,7 +515,7 @@ export default function App() {
         partners={partners}
         partnerBalances={partnerBalances}
         payments={payments}
-        onAddBet={(bet) => setBets([...bets, bet])}
+        onAddBet={addBetWithPartners}
         onDrill={drillTo}
       />
 
@@ -1842,7 +1872,18 @@ function SettingsTab({ settings, setSettings, partners, setPartners, bets, setBe
           <AddBetModal
             partners={partners}
             onClose={() => setShowAddBet(false)}
-            onSave={(bet) => { setBets([...bets, bet]); setShowAddBet(false); }}
+            onSave={(bet) => {
+              const existingNames = new Set(partners.map(p => p.name.toLowerCase()));
+              existingNames.add('me');
+              const newPartnerNames = (bet.splits || [])
+                .map(s => s.name)
+                .filter(name => name && !existingNames.has(name.toLowerCase()));
+              if (newPartnerNames.length > 0) {
+                setPartners([...partners, ...newPartnerNames.map(name => ({ name, defaultSplit: null }))]);
+              }
+              setBets([...bets, bet]);
+              setShowAddBet(false);
+            }}
           />
         )}
       </Card>
@@ -1884,7 +1925,7 @@ function AddBetModal({ partners, onClose, onSave, initial = null }) {  const [fo
     totalCost: '',
     maxPayout: '',
     splits: [{ name: 'Me', pct: 100 }],
-    status: 'closed',
+    status: 'open',
     outcome: 'won',
     sellPrice: '',
     closedDate: today(),
@@ -1897,20 +1938,28 @@ function AddBetModal({ partners, onClose, onSave, initial = null }) {  const [fo
   );
 
   const parseSplits = (text) => {
-    const parts = text.split('/').map(s => s.trim()).filter(Boolean);
+    // Accept /, comma, or " and " as separators between split entries
+    const parts = text
+      .split(/\s*[/,]\s*|\s+and\s+/i)
+      .map(s => s.trim())
+      .filter(Boolean);
     const splits = parts.map(p => {
-      const m = p.match(/^(.+?)\s+(\d+(?:\.\d+)?)$/);
+      // Match "Name 33" or "Name 33%" — name can be multi-word
+      const m = p.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*%?$/);
       if (!m) return null;
       return { name: m[1].trim(), pct: parseFloat(m[2]) };
     }).filter(Boolean);
+    if (splits.length === 0) return null;
     const total = splits.reduce((s, x) => s + x.pct, 0);
-    if (Math.abs(total - 100) > 0.1) return null;
-    return splits;
+    if (Math.abs(total - 100) > 0.1) return { error: `Splits total ${total}%, must equal 100%.` };
+    return { splits };
   };
 
   const submit = () => {
-    const splits = parseSplits(splitText);
-    if (!splits) { alert('Splits must total 100%. Format: "Me 60 / Alex 40"'); return; }
+    const parsed = parseSplits(splitText);
+    if (!parsed) { alert('Splits format unrecognized.\n\nExamples that work:\n  Me 100\n  Me 50 / Bird 50\n  Me 33, Bird 33, Joey C 34\n  Me 33 and Bird 33 and Joey C 34'); return; }
+    if (parsed.error) { alert(parsed.error); return; }
+    const splits = parsed.splits;
     if (!form.player || !form.tournament || !form.totalCost) { alert('Player, tournament, and cost required.'); return; }
     onSave({
       ...form,
@@ -1981,7 +2030,7 @@ function AddBetModal({ partners, onClose, onSave, initial = null }) {  const [fo
           <FormField label="Total cost ($)"><input type="number" step="0.01" value={form.totalCost} onChange={e => setForm({ ...form, totalCost: e.target.value })} style={inputStyle()} /></FormField>
           <FormField label="Max payout ($)"><input type="number" step="0.01" value={form.maxPayout} onChange={e => setForm({ ...form, maxPayout: e.target.value })} style={inputStyle()} /></FormField>
           <FormField label="Splits (must sum to 100)">
-            <input value={splitText} onChange={e => setSplitText(e.target.value)} style={inputStyle()} placeholder="Me 60 / Alex 40" />
+            <input value={splitText} onChange={e => setSplitText(e.target.value)} style={inputStyle()} placeholder="Me 50 / Bird 50  or  Me 33, Bird 33, Joey C 34" />
           </FormField>
           <FormField label="Entry date"><input type="date" value={form.entryDate} onChange={e => setForm({ ...form, entryDate: e.target.value })} style={inputStyle()} /></FormField>
           {form.status === 'closed' && (
