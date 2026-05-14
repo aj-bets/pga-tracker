@@ -889,6 +889,8 @@ function LivePositionCard({ bet, onClose }) {
   const rounds = bet.roundResults || [];
   const isPreRound = live.status === 'pre-round' || (!live.totalScore && live.totalScore !== 0 && rounds.length === 0);
   const isComplete = live.status === 'complete';
+  const isBetweenRounds = live.status === 'between-rounds';
+  const roundFinished = isComplete || isBetweenRounds;
 
   const fmtScore = (s) => {
     if (s === null || s === undefined) return '—';
@@ -918,15 +920,15 @@ function LivePositionCard({ bet, onClose }) {
       padding: 16,
     }}>
       {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 8 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 17, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-            {bet.player}
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bet.player}</span>
             {trendIcon()}
           </div>
-          <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>{bet.tournament}</div>
+          <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bet.tournament}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 4, flexShrink: 0, maxWidth: '50%' }}>
           {bet.splits?.filter(s => s.name !== 'Me').map(s => (
             <PartnerPill key={s.name} name={s.name} />
           ))}
@@ -965,10 +967,10 @@ function LivePositionCard({ bet, onClose }) {
             </div>
             <div>
               <div style={{ fontSize: 10, color: theme.textDim, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-                {isComplete ? 'Final' : 'Thru'}
+                {roundFinished ? 'Final' : 'Thru'}
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, ...tabularStyle }}>
-                {isComplete ? 'F' : (live.holesPlayed != null ? live.holesPlayed : '—')}
+                {roundFinished ? 'F' : (live.holesPlayed != null ? live.holesPlayed : '—')}
               </div>
             </div>
           </div>
@@ -2129,15 +2131,16 @@ function Pill({ label, small }) {
   return (
     <span style={{
       display: 'inline-block',
-      padding: small ? '2px 6px' : '3px 8px',
+      padding: small ? '1px 5px' : '2px 6px',
       background: theme.bgElevated,
       border: `1px solid ${theme.border}`,
       borderRadius: 4,
-      fontSize: small ? 10 : 11,
+      fontSize: small ? 9 : 10,
       color: theme.textMuted,
       textTransform: 'uppercase',
-      letterSpacing: 0.4,
+      letterSpacing: 0.3,
       fontWeight: 500,
+      whiteSpace: 'nowrap',
     }}>{label}</span>
   );
 }
@@ -2152,15 +2155,16 @@ function PartnerPill({ name }) {
   return (
     <span style={{
       display: 'inline-block',
-      padding: '3px 8px',
+      padding: '2px 6px',
       background: 'transparent',
       border: `1px solid ${color}`,
       borderRadius: 4,
-      fontSize: 11,
+      fontSize: 10,
       color: color,
       textTransform: 'uppercase',
-      letterSpacing: 0.4,
+      letterSpacing: 0.3,
       fontWeight: 600,
+      whiteSpace: 'nowrap',
     }}>{name}</span>
   );
 }
